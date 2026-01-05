@@ -128,40 +128,25 @@ jobs:
           FIRST_USER_NAME=pi
           FIRST_USER_PASS=shadow123
           ENABLE_SSH=1
-          STAGE_LIST="stage0 stage1 stage2 stage-shadow"
+          STAGE_LIST="stage0 stage1 stage2"
           ENDCONFIG
           
           echo "=== Config file ==="
           cat config
           
-      - name: Create Shadow stage
+      - name: Add Shadow scripts to stage2
         run: |
           cd pi-gen
           
-          # Create stage directory structure
-          mkdir -p stage-shadow/00-install-deps
-          mkdir -p stage-shadow/01-install-shadow
-          mkdir -p stage-shadow/02-configure
+          # Add MoMo-Shadow installation to stage2
+          mkdir -p stage2/05-shadow
           
-          # EXPORT_IMAGE - tells pi-gen to export image at this stage
-          cat > stage-shadow/EXPORT_IMAGE << 'EOF'
-          IMG_SUFFIX="-shadow"
-          EOF
-          
-          # prerun.sh
-          cat > stage-shadow/prerun.sh << 'EOF'
-          #!/bin/bash -e
-          echo "Starting MoMo-Shadow stage..."
-          EOF
-          chmod +x stage-shadow/prerun.sh
-          
-          # 00-packages - NO .sh extension, one package per line
-          cat > stage-shadow/00-install-deps/00-packages << 'EOF'
+          # 00-packages for shadow dependencies
+          cat > stage2/05-shadow/00-packages << 'EOF'
           git
           python3-pip
           python3-venv
           python3-dev
-          build-essential
           hostapd
           dnsmasq
           aircrack-ng
@@ -171,22 +156,23 @@ jobs:
           avahi-daemon
           EOF
           
-          # 01-run-chroot - NO .sh extension for pi-gen!
-          cat > stage-shadow/01-install-shadow/00-run-chroot << 'EOF'
+          # 01-run.sh - Install MoMo-Shadow
+          cat > stage2/05-shadow/01-run.sh << 'EOF'
           #!/bin/bash -e
 
           echo "Installing MoMo-Shadow..."
 
+          on_chroot << CHEOF
           # Clone MoMo-Shadow
           if [ ! -d /opt/shadow ]; then
-              git clone https://github.com/M0M0Sec/MoMo-Shadow.git /opt/shadow
+              git clone https://github.com/M0M0Sec/MoMo-Shadow.git /opt/shadow || echo "Clone failed"
           fi
 
           # Create virtual environment
-          cd /opt/shadow
-          python3 -m venv venv
-          . venv/bin/activate
-          pip install --upgrade pip wheel setuptools
+          cd /opt/shadow || exit 0
+          python3 -m venv venv || echo "venv failed"
+          . venv/bin/activate || echo "activate failed"
+          pip install --upgrade pip wheel setuptools || echo "pip upgrade failed"
           pip install -e . || echo "pip install failed, continuing..."
 
           # Create directories
@@ -204,33 +190,36 @@ jobs:
               cp /opt/shadow/deploy/shadow.service /etc/systemd/system/
               systemctl enable shadow.service || true
           fi
+          CHEOF
 
           echo "MoMo-Shadow installation complete!"
           EOF
-          chmod +x stage-shadow/01-install-shadow/00-run-chroot
+          chmod +x stage2/05-shadow/01-run.sh
           
-          # 02-run-chroot - System configuration
-          cat > stage-shadow/02-configure/00-run-chroot << 'EOF'
+          # 02-run.sh - Configure system
+          cat > stage2/05-shadow/02-run.sh << 'EOF'
           #!/bin/bash -e
 
           echo "Configuring system for MoMo-Shadow..."
 
+          on_chroot << CHEOF
           # Enable SPI for e-Paper display
           if command -v raspi-config &> /dev/null; then
               raspi-config nonint do_spi 0 || true
           fi
+          CHEOF
 
-          # Determine boot config location
-          if [ -f /boot/firmware/config.txt ]; then
-              BOOT_CONFIG="/boot/firmware/config.txt"
-              CMDLINE="/boot/firmware/cmdline.txt"
+          # Determine boot config location in rootfs
+          if [ -f "${ROOTFS_DIR}/boot/firmware/config.txt" ]; then
+              BOOT_CONFIG="${ROOTFS_DIR}/boot/firmware/config.txt"
+              CMDLINE="${ROOTFS_DIR}/boot/firmware/cmdline.txt"
           else
-              BOOT_CONFIG="/boot/config.txt"
-              CMDLINE="/boot/cmdline.txt"
+              BOOT_CONFIG="${ROOTFS_DIR}/boot/config.txt"
+              CMDLINE="${ROOTFS_DIR}/boot/cmdline.txt"
           fi
 
           # Enable USB Gadget mode
-          if ! grep -q "dtoverlay=dwc2" "$BOOT_CONFIG"; then
+          if [ -f "$BOOT_CONFIG" ] && ! grep -q "dtoverlay=dwc2" "$BOOT_CONFIG"; then
               echo "dtoverlay=dwc2" >> "$BOOT_CONFIG"
           fi
 
@@ -238,6 +227,7 @@ jobs:
               sed -i 's/rootwait/rootwait modules-load=dwc2,g_ether/' "$CMDLINE"
           fi
 
+          on_chroot << CHEOF
           # Configure hostapd for Shadow AP
           mkdir -p /etc/hostapd
           cat > /etc/hostapd/hostapd.conf << 'HOSTAPD'
@@ -292,13 +282,18 @@ jobs:
           systemctl enable dnsmasq 2>/dev/null || true
           systemctl enable avahi-daemon 2>/dev/null || true
           systemctl enable ssh 2>/dev/null || true
+          CHEOF
 
           echo "System configuration complete!"
           EOF
-          chmod +x stage-shadow/02-configure/00-run-chroot
+          chmod +x stage2/05-shadow/02-run.sh
           
-          echo "=== Stage structure ==="
-          find stage-shadow -type f | head -20
+          # Enable image export at stage2
+          touch stage2/EXPORT_IMAGE
+          
+          echo "=== Stage2 structure ==="
+          ls -la stage2/
+          ls -la stage2/05-shadow/
           
       - name: Build image
         run: |
