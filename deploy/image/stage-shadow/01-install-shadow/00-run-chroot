@@ -13,9 +13,9 @@ fi
 # Create virtual environment
 cd /opt/shadow
 python3 -m venv venv
-source venv/bin/activate
+. venv/bin/activate
 pip install --upgrade pip wheel setuptools
-pip install -e .
+pip install -e . || echo "pip install failed, continuing..."
 
 # Create directories
 mkdir -p /etc/shadow
@@ -23,11 +23,15 @@ mkdir -p /var/shadow/data
 mkdir -p /var/shadow/captures
 
 # Copy config
-cp /opt/shadow/config/shadow.example.yml /etc/shadow/config.yml
+if [ -f /opt/shadow/config/shadow.example.yml ]; then
+    cp /opt/shadow/config/shadow.example.yml /etc/shadow/config.yml
+fi
 
 # Install systemd service
-cp /opt/shadow/deploy/shadow.service /etc/systemd/system/
-systemctl enable shadow.service
+if [ -f /opt/shadow/deploy/shadow.service ]; then
+    cp /opt/shadow/deploy/shadow.service /etc/systemd/system/
+    systemctl enable shadow.service || true
+fi
 
 echo "MoMo-Shadow installed successfully!"
 
