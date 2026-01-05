@@ -4,7 +4,7 @@
 #                         One Command, Everything Included
 #═══════════════════════════════════════════════════════════════════════════════
 #
-# Usage: curl -fsSL https://raw.githubusercontent.com/Momo-Master/MoMo-Shadow/main/deploy/install.sh | sudo bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/M0M0Sec/MoMo-Shadow/main/deploy/install.sh | sudo bash
 #
 # This script installs:
 # - System dependencies
@@ -110,8 +110,24 @@ install_dependencies() {
         hcxtools \
         tcpdump \
         iw \
-        wireless-tools \
-        raspberrypi-kernel-headers
+        wireless-tools
+    
+    # Install kernel headers (package name varies by distro)
+    echo -e "${CYAN}[*] Installing kernel headers...${NC}"
+    KERNEL_VER=$(uname -r)
+    
+    if apt install -y "linux-headers-${KERNEL_VER}" 2>/dev/null; then
+        echo -e "${GREEN}[✓] Kernel headers installed (linux-headers-${KERNEL_VER})${NC}"
+    elif apt install -y linux-headers-rpi-v8 2>/dev/null; then
+        echo -e "${GREEN}[✓] Kernel headers installed (linux-headers-rpi-v8)${NC}"
+    elif apt install -y raspberrypi-kernel-headers 2>/dev/null; then
+        echo -e "${GREEN}[✓] Kernel headers installed (raspberrypi-kernel-headers)${NC}"
+    elif apt install -y linux-headers-generic 2>/dev/null; then
+        echo -e "${GREEN}[✓] Kernel headers installed (linux-headers-generic)${NC}"
+    else
+        echo -e "${YELLOW}[!] Could not install kernel headers - Nexmon compilation may fail${NC}"
+        echo -e "${YELLOW}[!] Continuing without kernel headers...${NC}"
+    fi
     
     echo -e "${GREEN}[✓] Dependencies installed${NC}"
 }
@@ -221,7 +237,7 @@ install_shadow() {
         git pull
     else
         rm -rf "$INSTALL_DIR"
-        git clone https://github.com/Momo-Master/MoMo-Shadow.git "$INSTALL_DIR"
+        git clone https://github.com/M0M0Sec/MoMo-Shadow.git "$INSTALL_DIR"
     fi
     
     cd "$INSTALL_DIR"
