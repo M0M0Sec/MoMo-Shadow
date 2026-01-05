@@ -89,7 +89,7 @@ class CaptureEngine:
     def __init__(
         self,
         interface: str,
-        captures_dir: str = "/var/shadow/captures",
+        captures_dir: str = "/var/momo-shadow/captures",
         on_handshake: Callable[[Handshake], None] | None = None,
     ):
         """

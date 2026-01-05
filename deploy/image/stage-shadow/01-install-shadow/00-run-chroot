@@ -17,14 +17,14 @@ python3 -m venv venv
 pip install --upgrade pip wheel setuptools
 pip install -e . || echo "pip install failed, continuing..."
 
-# Create directories
-mkdir -p /etc/shadow
-mkdir -p /var/shadow/data
-mkdir -p /var/shadow/captures
+# Create directories (use momo-shadow to avoid conflict with /etc/shadow)
+mkdir -p /etc/momo-shadow
+mkdir -p /var/momo-shadow/data
+mkdir -p /var/momo-shadow/captures
 
 # Copy config
 if [ -f /opt/shadow/config/shadow.example.yml ]; then
-    cp /opt/shadow/config/shadow.example.yml /etc/shadow/config.yml
+    cp /opt/shadow/config/shadow.example.yml /etc/momo-shadow/config.yml
 fi
 
 # Install systemd service

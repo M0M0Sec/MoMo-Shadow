@@ -222,8 +222,8 @@ source venv/bin/activate
 pip install -e .
 
 # Configure
-sudo mkdir -p /etc/shadow
-sudo cp config/shadow.example.yml /etc/shadow/config.yml
+sudo mkdir -p /etc/momo-shadow
+sudo cp config/shadow.example.yml /etc/momo-shadow/config.yml
 
 # Run
 shadow run
@@ -267,8 +267,8 @@ source venv/bin/activate
 pip install -e .
 
 # Configure
-sudo mkdir -p /etc/shadow /var/shadow/data /var/shadow/captures
-sudo cp config/shadow.example.yml /etc/shadow/config.yml
+sudo mkdir -p /etc/momo-shadow /var/momo-shadow/data /var/momo-shadow/captures
+sudo cp config/shadow.example.yml /etc/momo-shadow/config.yml
 
 # Install service
 sudo cp deploy/shadow.service /etc/systemd/system/

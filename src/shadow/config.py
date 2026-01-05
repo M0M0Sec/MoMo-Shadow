@@ -139,8 +139,8 @@ class NexusConfig(BaseModel):
 class StorageConfig(BaseModel):
     """Storage configuration."""
 
-    data_dir: str = Field(default="/var/shadow/data", description="Data directory")
-    captures_dir: str = Field(default="/var/shadow/captures", description="Captures directory")
+    data_dir: str = Field(default="/var/momo-shadow/data", description="Data directory")
+    captures_dir: str = Field(default="/var/momo-shadow/captures", description="Captures directory")
     max_db_size_mb: int = Field(default=100, ge=10, le=1000, description="Max database size MB")
 
 
@@ -151,7 +151,7 @@ class ShadowConfig(BaseSettings):
     Configuration is loaded from:
     1. Default values
     2. /boot/shadow.yml (for headless setup)
-    3. /etc/shadow/config.yml
+    3. /etc/momo-shadow/config.yml
     4. Environment variables (prefixed with SHADOW_)
     """
 
@@ -192,7 +192,7 @@ class ShadowConfig(BaseSettings):
         1. Provided path
         2. SHADOW_CONFIG environment variable
         3. /boot/shadow.yml (headless setup)
-        4. /etc/shadow/config.yml
+        4. /etc/momo-shadow/config.yml
         5. Default values
         """
         # Try provided path
@@ -209,8 +209,8 @@ class ShadowConfig(BaseSettings):
         if boot_path.exists():
             return cls.from_yaml(boot_path)
 
-        # Try /etc/shadow/config.yml
-        etc_path = Path("/etc/shadow/config.yml")
+        # Try /etc/momo-shadow/config.yml
+        etc_path = Path("/etc/momo-shadow/config.yml")
         if etc_path.exists():
             return cls.from_yaml(etc_path)
 

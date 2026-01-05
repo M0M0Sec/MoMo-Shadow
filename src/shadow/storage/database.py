@@ -78,7 +78,7 @@ class Database:
     CREATE INDEX IF NOT EXISTS idx_handshake_bssid ON handshakes(bssid);
     """
 
-    def __init__(self, db_path: str = "/var/shadow/data/shadow.db"):
+    def __init__(self, db_path: str = "/var/momo-shadow/data/shadow.db"):
         """
         Initialize database.
 

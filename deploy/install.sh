@@ -25,8 +25,8 @@ NC='\033[0m' # No Color
 
 # Directories
 INSTALL_DIR="/opt/shadow"
-CONFIG_DIR="/etc/shadow"
-DATA_DIR="/var/shadow"
+CONFIG_DIR="/etc/momo-shadow"
+DATA_DIR="/var/momo-shadow"
 NEXMON_DIR="/opt/nexmon"
 
 # Banner

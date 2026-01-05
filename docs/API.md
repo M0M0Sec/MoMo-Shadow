@@ -213,7 +213,7 @@ Get captured handshakes.
     "capture_type": "handshake",
     "timestamp": "2026-01-05T12:45:00Z",
     "complete": true,
-    "pcap_path": "/var/shadow/captures/Corp-WiFi_AABBCCDDEEFF_20260105.pcap"
+    "pcap_path": "/var/momo-shadow/captures/Corp-WiFi_AABBCCDDEEFF_20260105.pcap"
   }
 ]
 ```

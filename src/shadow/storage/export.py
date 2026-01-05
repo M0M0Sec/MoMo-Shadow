@@ -23,7 +23,7 @@ class HashcatExporter:
     - PMKID (mode 22000)
     """
 
-    def __init__(self, output_dir: str = "/var/shadow/exports"):
+    def __init__(self, output_dir: str = "/var/momo-shadow/exports"):
         """
         Initialize exporter.
 

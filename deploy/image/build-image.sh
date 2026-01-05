@@ -106,12 +106,12 @@ pip install --upgrade pip
 pip install -e .
 
 # Create directories
-mkdir -p /etc/shadow
-mkdir -p /var/shadow/data
-mkdir -p /var/shadow/captures
+mkdir -p /etc/momo-shadow
+mkdir -p /var/momo-shadow/data
+mkdir -p /var/momo-shadow/captures
 
 # Copy config
-cp /opt/shadow/config/shadow.example.yml /etc/shadow/config.yml
+cp /opt/shadow/config/shadow.example.yml /etc/momo-shadow/config.yml
 
 # Install service
 cp /opt/shadow/deploy/shadow.service /etc/systemd/system/

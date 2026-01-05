@@ -3,7 +3,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # Copy this file to /boot/shadow.yml for headless setup
-# Or to /etc/shadow/config.yml for persistent configuration
+# Or to /etc/momo-shadow/config.yml for persistent configuration
 #
 
 # ─────────────────────────────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ nexus:
 # Storage
 # ─────────────────────────────────────────────────────────────────────────────────
 storage:
-  data_dir: "/var/shadow/data"
-  captures_dir: "/var/shadow/captures"
+  data_dir: "/var/momo-shadow/data"
+  captures_dir: "/var/momo-shadow/captures"
   max_db_size_mb: 100
 

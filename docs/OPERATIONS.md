@@ -196,8 +196,8 @@ display:
 
 3. DATA EXTRACTION
    ├── Remove SD card
-   ├── Copy /var/shadow/data/
-   ├── Copy /var/shadow/captures/
+   ├── Copy /var/momo-shadow/data/
+   ├── Copy /var/momo-shadow/captures/
    └── Wipe device if needed
 
 4. POST-OP
@@ -261,7 +261,7 @@ Low Noise:
 ### Database Location
 
 ```
-/var/shadow/
+/var/momo-shadow/
 ├── data/
 │   └── shadow.db      # SQLite database
 └── captures/
@@ -272,10 +272,10 @@ Low Noise:
 
 ```bash
 # Export handshakes to hashcat format
-shadow export /var/shadow/captures/*.pcap -o /tmp/hashes/
+shadow export /var/momo-shadow/captures/*.pcap -o /tmp/hashes/
 
 # Database is standard SQLite
-sqlite3 /var/shadow/data/shadow.db ".dump" > backup.sql
+sqlite3 /var/momo-shadow/data/shadow.db ".dump" > backup.sql
 ```
 
 ---
@@ -295,8 +295,8 @@ sqlite3 /var/shadow/data/shadow.db ".dump" > backup.sql
 mount /dev/sdb1 /mnt/shadow
 
 # Copy data
-cp -r /mnt/shadow/var/shadow/captures/ ./
-cp /mnt/shadow/var/shadow/data/shadow.db ./
+cp -r /mnt/shadow/var/momo-shadow/captures/ ./
+cp /mnt/shadow/var/momo-shadow/data/shadow.db ./
 
 # Unmount
 umount /mnt/shadow
@@ -306,10 +306,10 @@ umount /mnt/shadow
 
 ```bash
 # SCP captures
-scp -r pi@shadow.local:/var/shadow/captures/ ./
+scp -r pi@shadow.local:/var/momo-shadow/captures/ ./
 
 # Or rsync for efficiency
-rsync -avz pi@shadow.local:/var/shadow/ ./shadow-data/
+rsync -avz pi@shadow.local:/var/momo-shadow/ ./shadow-data/
 ```
 
 ### Post-Extraction Processing
