@@ -66,6 +66,27 @@ jobs:
           STAGE_LIST="stage0 stage1 stage2 stage-shadow"
           EOF
           
+          # Skip problematic packages in stage2
+          # These are RPi-specific packages not in standard Debian repos
+          if [ -f stage2/01-sys-tweaks/00-packages ]; then
+            sed -i '/rpi-swap/d' stage2/01-sys-tweaks/00-packages
+            sed -i '/rpi-loop-utils/d' stage2/01-sys-tweaks/00-packages
+            sed -i '/rpi-usb-gadget/d' stage2/01-sys-tweaks/00-packages
+          fi
+          
+          # Add Raspberry Pi repository for ARM builds
+          mkdir -p stage2/00-rpi-repo
+          cat > stage2/00-rpi-repo/00-run-chroot << 'REPOEOF'
+          #!/bin/bash -e
+          # Add Raspberry Pi repository if not present
+          if [ ! -f /etc/apt/sources.list.d/raspi.list ]; then
+            echo "deb http://archive.raspberrypi.com/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list
+            wget -qO - http://archive.raspberrypi.com/debian/raspberrypi.gpg.key | apt-key add - || true
+            apt-get update || true
+          fi
+          REPOEOF
+          chmod +x stage2/00-rpi-repo/00-run-chroot
+          
       - name: Create Shadow stage
         run: |
           mkdir -p pi-gen/stage-shadow/00-install-deps
