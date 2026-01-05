@@ -64,7 +64,7 @@ jobs:
           find . -name "*packages*" -type f 2>/dev/null | head -20
           
           # Remove specific packages that don't exist in standard repos
-          PROBLEM_PACKAGES="rpi-swap rpi-loop-utils rpi-usb-gadget rpi-eeprom"
+          PROBLEM_PACKAGES="rpi-swap rpi-loop-utils rpi-usb-gadget rpi-eeprom rpi-cloud-init-mods rpi-connect rpi-connect-lite rpicam-apps rpi-imager"
           
           for pkg in $PROBLEM_PACKAGES; do
             echo "Removing package: $pkg"
@@ -73,6 +73,15 @@ jobs:
               sed -i "/^${pkg}$/d" "$f"
               sed -i "/${pkg}/d" "$f"
             done
+          done
+          
+          # Also remove ALL rpi-* packages (they're RPi-specific and may not exist)
+          echo "=== Removing all rpi-* packages ==="
+          find . -name "*packages*" -type f | while read f; do
+            if grep -q "^rpi-" "$f" 2>/dev/null; then
+              echo "Cleaning rpi-* from: $f"
+              sed -i '/^rpi-/d' "$f"
+            fi
           done
           
           echo "=== Patching scripts for missing services ==="
