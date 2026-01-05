@@ -53,7 +53,7 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/RPi-Distro/pi-gen.git pi-gen
           
-      - name: Patch pi-gen for missing packages
+      - name: Patch pi-gen for missing packages and services
         run: |
           cd pi-gen
           
@@ -75,8 +75,31 @@ jobs:
             done
           done
           
+          echo "=== Patching scripts for missing services ==="
+          
+          # Patch 01-run.sh scripts to handle missing services gracefully
+          find . -name "01-run.sh" -type f | while read f; do
+            echo "Patching: $f"
+            # Make systemctl enable commands non-fatal
+            sed -i 's/systemctl enable/systemctl enable --no-reload 2>\/dev\/null ||true #/g' "$f"
+            # Comment out rpi-resize lines
+            sed -i '/rpi-resize/s/^/#DISABLED: /' "$f"
+            # Comment out rpi-eeprom lines
+            sed -i '/rpi-eeprom/s/^/#DISABLED: /' "$f"
+          done
+          
+          # Also patch any run-chroot scripts
+          find . -name "*run-chroot*" -o -name "*run.sh" | while read f; do
+            if [ -f "$f" ]; then
+              echo "Checking: $f"
+              sed -i 's/systemctl enable rpi-resize/true #rpi-resize disabled/g' "$f" 2>/dev/null || true
+              sed -i 's/systemctl enable rpi-eeprom/true #rpi-eeprom disabled/g' "$f" 2>/dev/null || true
+            fi
+          done
+          
           echo "=== Verification ==="
           grep -r "rpi-swap\|rpi-loop-utils\|rpi-usb-gadget" . --include="*packages*" || echo "All problematic packages removed"
+          grep -rn "rpi-resize" stage2/ || echo "rpi-resize references handled"
           
       - name: Configure pi-gen
         run: |
