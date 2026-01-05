@@ -1,0 +1,35 @@
+# MoMo-Shadow Requirements
+# Python 3.11+
+
+# Core
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+pyyaml>=6.0.1
+
+# Async
+aiofiles>=23.2.0
+aiosqlite>=0.19.0
+
+# Web
+fastapi>=0.109.0
+uvicorn>=0.27.0
+jinja2>=3.1.0
+
+# WiFi/Network
+scapy>=2.5.0
+
+# Display
+pillow>=10.0.0
+
+# CLI
+typer>=0.9.0
+rich>=13.0.0
+
+# Hardware (Pi only)
+# spidev>=3.6
+# RPi.GPIO>=0.7.1
+# waveshare-epd
+
+# I2C (Battery monitoring)
+# smbus2>=0.4.0
+

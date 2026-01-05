@@ -1,0 +1,110 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#                           MoMo-Shadow Configuration
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Copy this file to /boot/shadow.yml for headless setup
+# Or to /etc/shadow/config.yml for persistent configuration
+#
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Device Settings
+# ─────────────────────────────────────────────────────────────────────────────────
+device:
+  name: "shadow-01"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# WiFi Access Point (for control)
+# Uses same interface as scanning - switches between AP and Monitor mode
+# ─────────────────────────────────────────────────────────────────────────────────
+ap:
+  enabled: true
+  ssid: "Shadow-{random}"      # {random} = 4 random hex chars
+  password: "shadowpass123"    # Min 8 characters
+  hidden: false
+  channel: 6
+  setup_timeout: 60            # Seconds before auto-switch to monitor mode
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Web UI
+# ─────────────────────────────────────────────────────────────────────────────────
+web:
+  enabled: true
+  host: "0.0.0.0"
+  port: 80
+  auth_enabled: false
+  auth_token: ""              # Empty = use AP password
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Autostart Configuration
+# ─────────────────────────────────────────────────────────────────────────────────
+autostart:
+  enabled: true
+  mode: "passive"             # passive, capture, drop
+  delay: 10                   # Seconds before starting
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Target Filtering
+# ─────────────────────────────────────────────────────────────────────────────────
+targets:
+  ssids: []                   # Target SSIDs (empty = all)
+  bssids: []                  # Target BSSIDs
+  ignore:                     # SSIDs to ignore
+    - "My-Home-WiFi"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Scanning Configuration
+# Pi Zero 2W: Uses internal WiFi with Nexmon for monitor mode
+# ─────────────────────────────────────────────────────────────────────────────────
+scan:
+  channels_2g: [1, 6, 11]     # 2.4GHz channels (internal WiFi is 2.4GHz only)
+  channels_5g: []             # Empty - internal WiFi doesn't support 5GHz
+  hop_interval: 0.5           # Channel hop interval (seconds)
+  interface: "wlan0"          # Internal WiFi (Nexmon patched)
+  use_nexmon: true            # Use Nexmon for monitor mode (Pi Zero 2W)
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Capture Configuration
+# ─────────────────────────────────────────────────────────────────────────────────
+capture:
+  enabled: true
+  deauth_count: 5             # Deauth packets per burst
+  deauth_interval: 1.0        # Interval between deauth bursts
+  timeout: 120                # Capture timeout (seconds)
+  auto_stop: true             # Stop after successful capture
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# e-Paper Display
+# ─────────────────────────────────────────────────────────────────────────────────
+display:
+  enabled: true
+  refresh_interval: 60        # Seconds between updates
+  show_password: false        # Show AP password on display
+  rotation: 0                 # 0, 90, 180, 270
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Power Management
+# ─────────────────────────────────────────────────────────────────────────────────
+power:
+  low_battery_threshold: 15   # Low battery warning %
+  auto_shutdown: 5            # Auto shutdown at %
+  sleep_on_idle: false
+  idle_timeout: 300           # Seconds
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Nexus Sync (Optional)
+# ─────────────────────────────────────────────────────────────────────────────────
+nexus:
+  enabled: false
+  url: "http://nexus.local:8080"
+  api_key_env: "NEXUS_API_KEY"
+  sync_on_wifi: true
+  sync_interval: 300
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Storage
+# ─────────────────────────────────────────────────────────────────────────────────
+storage:
+  data_dir: "/var/shadow/data"
+  captures_dir: "/var/shadow/captures"
+  max_db_size_mb: 100
+

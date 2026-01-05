@@ -1,0 +1,23 @@
+[Unit]
+Description=MoMo-Shadow Stealth Recon Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/shadow
+ExecStart=/opt/shadow/venv/bin/shadow run
+Restart=on-failure
+RestartSec=10
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=shadow
+
+[Install]
+WantedBy=multi-user.target
+
