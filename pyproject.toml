@@ -58,9 +58,9 @@ shadow = "shadow.cli:main"
 momo-shadow = "shadow.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/Momo-Master/MoMo-Shadow"
-Documentation = "https://github.com/Momo-Master/MoMo-Shadow/docs"
-Repository = "https://github.com/Momo-Master/MoMo-Shadow"
+Homepage = "https://github.com/M0M0Sec/MoMo-Shadow"
+Documentation = "https://github.com/M0M0Sec/MoMo-Shadow/docs"
+Repository = "https://github.com/M0M0Sec/MoMo-Shadow"
 
 [tool.setuptools.packages.find]
 where = ["src"]

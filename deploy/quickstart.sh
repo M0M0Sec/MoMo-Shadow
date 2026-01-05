@@ -10,10 +10,10 @@
 #
 # Or:
 #
-#   wget -qO- https://raw.githubusercontent.com/Momo-Master/MoMo-Shadow/main/deploy/install.sh | sudo bash
+#   wget -qO- https://raw.githubusercontent.com/M0M0Sec/MoMo-Shadow/main/deploy/install.sh | sudo bash
 #
 #═══════════════════════════════════════════════════════════════════════════════
 
 # Redirect to main installer
-curl -fsSL https://raw.githubusercontent.com/Momo-Master/MoMo-Shadow/main/deploy/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/M0M0Sec/MoMo-Shadow/main/deploy/install.sh | sudo bash
 

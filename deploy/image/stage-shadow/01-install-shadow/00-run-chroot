@@ -1,0 +1,33 @@
+#!/bin/bash -e
+#
+# Install MoMo-Shadow
+#
+
+echo "Installing MoMo-Shadow..."
+
+# Clone MoMo-Shadow
+if [ ! -d /opt/shadow ]; then
+    git clone https://github.com/M0M0Sec/MoMo-Shadow.git /opt/shadow
+fi
+
+# Create virtual environment
+cd /opt/shadow
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip wheel setuptools
+pip install -e .
+
+# Create directories
+mkdir -p /etc/shadow
+mkdir -p /var/shadow/data
+mkdir -p /var/shadow/captures
+
+# Copy config
+cp /opt/shadow/config/shadow.example.yml /etc/shadow/config.yml
+
+# Install systemd service
+cp /opt/shadow/deploy/shadow.service /etc/systemd/system/
+systemctl enable shadow.service
+
+echo "MoMo-Shadow installed successfully!"
+

@@ -98,7 +98,7 @@ make && make install
 
 # Install MoMo-Shadow
 cd /opt
-git clone https://github.com/Momo-Master/MoMo-Shadow.git shadow
+git clone https://github.com/M0M0Sec/MoMo-Shadow.git shadow
 cd shadow
 python3 -m venv venv
 source venv/bin/activate

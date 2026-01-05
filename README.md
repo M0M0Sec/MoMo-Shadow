@@ -163,16 +163,40 @@ No external WiFi adapter needed!
 
 ## 🚀 Quick Start
 
-### Option 1: One-Line Install (Recommended)
+### Option 1: Pre-Built Image (Recommended) ⭐
+
+**Fastest way to get started - flash and go!**
+
+1. **Download** from [Releases](https://github.com/M0M0Sec/MoMo-Shadow/releases/latest):
+   ```
+   momo-shadow-vX.X.X-pi-zero-2w.img.xz
+   ```
+
+2. **Flash** with [balenaEtcher](https://etcher.balena.io/):
+   - Select downloaded `.img.xz`
+   - Select your SD card
+   - Click "Flash!"
+
+3. **Boot** - Insert SD card, power on Pi Zero 2W
+
+4. **Connect** to WiFi: `Shadow-Setup` (password: `shadowpass123`)
+
+5. **Open** http://192.168.4.1 - You're ready! 🥷
+
+> **Default SSH:** `pi` / `shadow123`
+
+---
+
+### Option 2: One-Line Install
+
+If you prefer to install on existing Raspberry Pi OS:
 
 ```bash
-# Flash Raspberry Pi OS Lite (64-bit) to SD card
-# Boot your Pi Zero 2W and SSH into it, then:
-
-curl -fsSL https://raw.githubusercontent.com/Momo-Master/MoMo-Shadow/main/deploy/install.sh | sudo bash
+# SSH into your Pi Zero 2W, then:
+curl -fsSL https://raw.githubusercontent.com/M0M0Sec/MoMo-Shadow/main/deploy/install.sh | sudo bash
 ```
 
-**That's it!** The script automatically:
+**The script automatically:**
 - ✅ Installs all dependencies
 - ✅ Installs Nexmon (monitor mode for internal WiFi)
 - ✅ Installs MoMo-Shadow
@@ -183,14 +207,26 @@ After reboot, Shadow starts automatically.
 
 ---
 
-### Option 2: Pre-Built Image (Coming Soon)
+### Option 3: Manual Install
 
 ```bash
-# Download ready-to-flash image
-wget https://github.com/Momo-Master/MoMo-Shadow/releases/latest/download/shadow-pi-zero-2w.img.xz
+# Clone repository
+git clone https://github.com/M0M0Sec/MoMo-Shadow.git /opt/shadow
+cd /opt/shadow
 
-# Flash to SD card
-xzcat shadow-pi-zero-2w.img.xz | sudo dd of=/dev/sdX bs=4M status=progress
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install
+pip install -e .
+
+# Configure
+sudo mkdir -p /etc/shadow
+sudo cp config/shadow.example.yml /etc/shadow/config.yml
+
+# Run
+shadow run
 
 # Boot and connect!
 ```
@@ -224,7 +260,7 @@ source setup_env.sh
 
 # Install MoMo-Shadow
 cd /opt
-sudo git clone https://github.com/Momo-Master/MoMo-Shadow.git shadow
+sudo git clone https://github.com/M0M0Sec/MoMo-Shadow.git shadow
 cd shadow
 python3 -m venv venv
 source venv/bin/activate
@@ -540,11 +576,11 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 </p>
 
 <p align="center">
-  <a href="https://github.com/Momo-Master/MoMo">🔵 MoMo</a> •
-  <a href="https://github.com/Momo-Master/MoMo-Nexus">🟢 Nexus</a> •
-  <a href="https://github.com/Momo-Master/Momo-GhostBridge">👻 GhostBridge</a> •
-  <a href="https://github.com/Momo-Master/MoMo-Mimic">🎭 Mimic</a> •
-  <a href="https://github.com/Momo-Master/MoMo-Shadow">🥷 Shadow</a>
+  <a href="https://github.com/M0M0Sec/MoMo">🔵 MoMo</a> •
+  <a href="https://github.com/M0M0Sec/MoMo-Nexus">🟢 Nexus</a> •
+  <a href="https://github.com/M0M0Sec/Momo-GhostBridge">👻 GhostBridge</a> •
+  <a href="https://github.com/M0M0Sec/MoMo-Mimic">🎭 Mimic</a> •
+  <a href="https://github.com/M0M0Sec/MoMo-Shadow">🥷 Shadow</a>
 </p>
 
 <p align="center">

@@ -1,0 +1,255 @@
+name: Build SD Card Image
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Image version (e.g., 0.1.0)'
+        required: true
+        default: '0.1.0'
+
+env:
+  IMAGE_NAME: momo-shadow
+  PI_GEN_RELEASE: bookworm
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            coreutils quilt parted qemu-user-static debootstrap \
+            zerofree zip dosfstools libarchive-tools libcap2-bin \
+            grep rsync xz-utils file git curl bc gpg pigz xxd \
+            arch-test
+            
+      - name: Clone pi-gen
+        run: |
+          git clone --depth 1 https://github.com/RPi-Distro/pi-gen.git pi-gen
+          
+      - name: Configure pi-gen
+        run: |
+          cd pi-gen
+          
+          # Main config
+          cat > config << EOF
+          IMG_NAME="${{ env.IMAGE_NAME }}"
+          RELEASE="${{ env.PI_GEN_RELEASE }}"
+          DEPLOY_COMPRESSION=xz
+          COMPRESSION_LEVEL=9
+          LOCALE_DEFAULT=en_US.UTF-8
+          TARGET_HOSTNAME=shadow
+          KEYBOARD_KEYMAP=us
+          KEYBOARD_LAYOUT="English (US)"
+          TIMEZONE_DEFAULT=UTC
+          FIRST_USER_NAME=pi
+          FIRST_USER_PASS=shadow123
+          ENABLE_SSH=1
+          STAGE_LIST="stage0 stage1 stage2 stage-shadow"
+          EOF
+          
+      - name: Create Shadow stage
+        run: |
+          mkdir -p pi-gen/stage-shadow/00-install-deps
+          mkdir -p pi-gen/stage-shadow/01-install-shadow
+          mkdir -p pi-gen/stage-shadow/02-configure
+          
+          # Stage config
+          echo "IMG_SUFFIX=-shadow" > pi-gen/stage-shadow/EXPORT_IMAGE
+          touch pi-gen/stage-shadow/SKIP_IMAGES
+          
+          # 00 - Install system dependencies
+          cat > pi-gen/stage-shadow/00-install-deps/00-packages << 'EOF'
+          git
+          python3-pip
+          python3-venv
+          python3-dev
+          build-essential
+          libgmp3-dev
+          gawk
+          hostapd
+          dnsmasq
+          aircrack-ng
+          hcxtools
+          tcpdump
+          iw
+          wireless-tools
+          libffi-dev
+          libssl-dev
+          avahi-daemon
+          EOF
+          
+          # 01 - Install MoMo-Shadow
+          cat > pi-gen/stage-shadow/01-install-shadow/00-run-chroot.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          # Clone MoMo-Shadow
+          git clone https://github.com/M0M0Sec/MoMo-Shadow.git /opt/shadow
+          
+          # Create virtual environment
+          cd /opt/shadow
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip wheel setuptools
+          pip install -e .
+          
+          # Create directories
+          mkdir -p /etc/shadow
+          mkdir -p /var/shadow/data
+          mkdir -p /var/shadow/captures
+          
+          # Copy config
+          cp /opt/shadow/config/shadow.example.yml /etc/shadow/config.yml
+          
+          # Install systemd service
+          cp /opt/shadow/deploy/shadow.service /etc/systemd/system/
+          systemctl enable shadow.service
+          EOF
+          chmod +x pi-gen/stage-shadow/01-install-shadow/00-run-chroot.sh
+          
+          # 02 - System configuration
+          cat > pi-gen/stage-shadow/02-configure/00-run-chroot.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          # Enable SPI for e-Paper
+          raspi-config nonint do_spi 0
+          
+          # Enable USB Gadget mode for easy access
+          echo "dtoverlay=dwc2" >> /boot/firmware/config.txt
+          sed -i 's/rootwait/rootwait modules-load=dwc2,g_ether/' /boot/firmware/cmdline.txt
+          
+          # Configure hostapd for Shadow AP
+          cat > /etc/hostapd/hostapd.conf << 'HOSTAPD'
+          interface=wlan0
+          driver=nl80211
+          ssid=Shadow-Setup
+          hw_mode=g
+          channel=7
+          wmm_enabled=0
+          macaddr_acl=0
+          auth_algs=1
+          ignore_broadcast_ssid=0
+          wpa=2
+          wpa_passphrase=shadowpass123
+          wpa_key_mgmt=WPA-PSK
+          rsn_pairwise=CCMP
+          HOSTAPD
+          
+          # Configure dnsmasq
+          cat > /etc/dnsmasq.d/shadow.conf << 'DNSMASQ'
+          interface=wlan0
+          dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
+          address=/shadow.local/192.168.4.1
+          DNSMASQ
+          
+          # Static IP for AP mode
+          cat >> /etc/dhcpcd.conf << 'DHCPCD'
+          
+          # Shadow AP mode
+          interface wlan0
+          static ip_address=192.168.4.1/24
+          nohook wpa_supplicant
+          DHCPCD
+          
+          # Disable default WiFi management
+          systemctl disable wpa_supplicant || true
+          
+          # Enable services
+          systemctl enable hostapd
+          systemctl enable dnsmasq
+          systemctl enable avahi-daemon
+          EOF
+          chmod +x pi-gen/stage-shadow/02-configure/00-run-chroot.sh
+          
+      - name: Build image
+        run: |
+          cd pi-gen
+          sudo ./build.sh
+          
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          
+          # Find and copy the built image
+          IMG_FILE=$(find pi-gen/deploy -name "*.img.xz" | head -1)
+          if [ -n "$IMG_FILE" ]; then
+            cp "$IMG_FILE" "release/${{ env.IMAGE_NAME }}-v${{ steps.version.outputs.version }}-pi-zero-2w.img.xz"
+          fi
+          
+          # Create SHA256 checksum
+          cd release
+          sha256sum *.img.xz > SHA256SUMS.txt
+          
+          # Create release notes
+          cat > RELEASE_NOTES.md << EOF
+          # MoMo-Shadow v${{ steps.version.outputs.version }}
+          
+          ## 🥷 Stealth WiFi Recon Device
+          
+          ### Quick Start
+          1. Download the \`.img.xz\` file
+          2. Flash to SD card with [balenaEtcher](https://etcher.balena.io/)
+          3. Insert SD card into Pi Zero 2W
+          4. Power on
+          5. Connect to WiFi: \`Shadow-Setup\` (password: \`shadowpass123\`)
+          6. Open: http://192.168.4.1
+          
+          ### Default Credentials
+          - **SSH User:** pi
+          - **SSH Password:** shadow123
+          - **WiFi AP:** Shadow-Setup
+          - **WiFi Password:** shadowpass123
+          - **Web UI:** http://192.168.4.1
+          
+          ### What's Included
+          - Raspberry Pi OS Lite (Bookworm)
+          - MoMo-Shadow pre-installed
+          - USB Gadget mode enabled
+          - WiFi AP auto-configured
+          - Systemd service enabled
+          
+          ### Verify Download
+          \`\`\`bash
+          sha256sum -c SHA256SUMS.txt
+          \`\`\`
+          EOF
+          
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-image
+          path: release/
+          retention-days: 30
+          
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          name: MoMo-Shadow ${{ github.ref_name }}
+          body_path: release/RELEASE_NOTES.md
+          files: |
+            release/*.img.xz
+            release/SHA256SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
