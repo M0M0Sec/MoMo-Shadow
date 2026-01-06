@@ -1,17 +1,20 @@
 [Unit]
 Description=MoMo-Shadow Stealth Recon Service
-After=network.target
+After=network.target shadow-ap.service
+Wants=shadow-ap.service
 
 [Service]
 Type=simple
 User=root
 WorkingDirectory=/opt/shadow
-ExecStart=/opt/shadow/venv/bin/shadow run
+ExecStartPre=/bin/sleep 10
+ExecStart=/opt/shadow/venv/bin/python -m shadow.main
 Restart=on-failure
 RestartSec=10
 
 # Environment
 Environment=PYTHONUNBUFFERED=1
+Environment=SHADOW_CONFIG=/etc/momo-shadow/config.yml
 
 # Logging
 StandardOutput=journal
