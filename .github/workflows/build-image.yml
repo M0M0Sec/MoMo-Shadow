@@ -43,377 +43,229 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            coreutils quilt parted qemu-user-static debootstrap \
-            zerofree zip dosfstools libarchive-tools libcap2-bin \
-            grep rsync xz-utils file git curl bc gpg pigz xxd \
-            arch-test kpartx
+          sudo apt-get install -y coreutils quilt parted qemu-user-static debootstrap zerofree zip dosfstools libarchive-tools libcap2-bin grep rsync xz-utils file git curl bc gpg pigz xxd arch-test kpartx
             
       - name: Clone pi-gen
-        run: |
-          git clone --depth 1 https://github.com/RPi-Distro/pi-gen.git pi-gen
+        run: git clone --depth 1 https://github.com/RPi-Distro/pi-gen.git pi-gen
           
       - name: Patch pi-gen for missing packages and services
         run: |
           cd pi-gen
           
-          # Find and remove problematic RPi-specific packages
-          echo "=== Searching for problematic packages ==="
-          
-          # List all package files
-          find . -name "*packages*" -type f 2>/dev/null | head -20
-          
-          # Remove specific packages that don't exist in standard repos
+          echo "=== Removing problematic packages ==="
           PROBLEM_PACKAGES="rpi-swap rpi-loop-utils rpi-usb-gadget rpi-eeprom rpi-cloud-init-mods rpi-connect rpi-connect-lite rpicam-apps rpi-imager"
           
           for pkg in $PROBLEM_PACKAGES; do
-            echo "Removing package: $pkg"
-            find . -name "*packages*" -type f -exec grep -l "$pkg" {} \; 2>/dev/null | while read f; do
-              echo "  Found in: $f"
-              sed -i "/^${pkg}$/d" "$f"
-              sed -i "/${pkg}/d" "$f"
-            done
+            find . -name "*packages*" -type f -exec sed -i "/^${pkg}$/d" {} \; 2>/dev/null || true
+            find . -name "*packages*" -type f -exec sed -i "/${pkg}/d" {} \; 2>/dev/null || true
           done
           
-          # Also remove ALL rpi-* packages (they're RPi-specific and may not exist)
-          echo "=== Removing all rpi-* packages ==="
-          find . -name "*packages*" -type f | while read f; do
-            if grep -q "^rpi-" "$f" 2>/dev/null; then
-              echo "Cleaning rpi-* from: $f"
-              sed -i '/^rpi-/d' "$f"
-            fi
-          done
+          # Remove ALL rpi-* packages
+          find . -name "*packages*" -type f -exec sed -i '/^rpi-/d' {} \; 2>/dev/null || true
           
           echo "=== Patching scripts for missing services ==="
-          
-          # Patch 01-run.sh scripts to handle missing services gracefully
-          find . -name "01-run.sh" -type f | while read f; do
-            echo "Patching: $f"
-            # Make systemctl enable commands non-fatal
-            sed -i 's/systemctl enable/systemctl enable --no-reload 2>\/dev\/null ||true #/g' "$f"
-            # Comment out rpi-resize lines
-            sed -i '/rpi-resize/s/^/#DISABLED: /' "$f"
-            # Comment out rpi-eeprom lines
-            sed -i '/rpi-eeprom/s/^/#DISABLED: /' "$f"
-          done
-          
-          # Also patch any run-chroot scripts
-          find . -name "*run-chroot*" -o -name "*run.sh" | while read f; do
-            if [ -f "$f" ]; then
-              echo "Checking: $f"
-              sed -i 's/systemctl enable rpi-resize/true #rpi-resize disabled/g' "$f" 2>/dev/null || true
-              sed -i 's/systemctl enable rpi-eeprom/true #rpi-eeprom disabled/g' "$f" 2>/dev/null || true
-            fi
-          done
+          find . -name "*.sh" -type f -exec sed -i 's/systemctl enable rpi-/true #disabled rpi-/g' {} \; 2>/dev/null || true
+          find . -name "*.sh" -type f -exec sed -i '/rpi-resize/s/^/#DISABLED: /' {} \; 2>/dev/null || true
+          find . -name "*.sh" -type f -exec sed -i '/rpi-eeprom/s/^/#DISABLED: /' {} \; 2>/dev/null || true
           
           echo "=== Verification ==="
           grep -r "rpi-swap\|rpi-loop-utils\|rpi-usb-gadget" . --include="*packages*" || echo "All problematic packages removed"
-          grep -rn "rpi-resize" stage2/ || echo "rpi-resize references handled"
           
       - name: Configure pi-gen
         run: |
           cd pi-gen
+          echo "IMG_NAME=momo-shadow" > config
+          echo "RELEASE=bookworm" >> config
+          echo "DEPLOY_COMPRESSION=xz" >> config
+          echo "COMPRESSION_LEVEL=6" >> config
+          echo "LOCALE_DEFAULT=en_US.UTF-8" >> config
+          echo "TARGET_HOSTNAME=shadow" >> config
+          echo "KEYBOARD_KEYMAP=us" >> config
+          echo 'KEYBOARD_LAYOUT="English (US)"' >> config
+          echo "TIMEZONE_DEFAULT=UTC" >> config
+          echo "FIRST_USER_NAME=pi" >> config
+          echo "FIRST_USER_PASS=shadow123" >> config
+          echo "ENABLE_SSH=1" >> config
+          echo 'STAGE_LIST="stage0 stage1 stage2"' >> config
+          echo "=== Config file ===" && cat config
           
-          # Main config - NO leading spaces! This is critical for pi-gen
-          cat > config << 'EOF'
-IMG_NAME=momo-shadow
-RELEASE=bookworm
-DEPLOY_COMPRESSION=xz
-COMPRESSION_LEVEL=6
-LOCALE_DEFAULT=en_US.UTF-8
-TARGET_HOSTNAME=shadow
-KEYBOARD_KEYMAP=us
-KEYBOARD_LAYOUT="English (US)"
-TIMEZONE_DEFAULT=UTC
-FIRST_USER_NAME=pi
-FIRST_USER_PASS=shadow123
-ENABLE_SSH=1
-STAGE_LIST="stage0 stage1 stage2"
-EOF
-          
-          echo "=== Config file ==="
-          cat config
-          
-      - name: Add Shadow scripts to stage2
+      - name: Add Shadow packages to stage2
         run: |
           cd pi-gen
-          
-          # Add MoMo-Shadow installation to stage2
           mkdir -p stage2/05-shadow
+          echo "git" > stage2/05-shadow/00-packages
+          echo "python3-pip" >> stage2/05-shadow/00-packages
+          echo "python3-venv" >> stage2/05-shadow/00-packages
+          echo "python3-dev" >> stage2/05-shadow/00-packages
+          echo "hostapd" >> stage2/05-shadow/00-packages
+          echo "dnsmasq" >> stage2/05-shadow/00-packages
+          echo "aircrack-ng" >> stage2/05-shadow/00-packages
+          echo "tcpdump" >> stage2/05-shadow/00-packages
+          echo "iw" >> stage2/05-shadow/00-packages
+          echo "wireless-tools" >> stage2/05-shadow/00-packages
+          echo "avahi-daemon" >> stage2/05-shadow/00-packages
+          echo "libjpeg-dev" >> stage2/05-shadow/00-packages
+          echo "zlib1g-dev" >> stage2/05-shadow/00-packages
+          echo "libfreetype6-dev" >> stage2/05-shadow/00-packages
+          echo "rfkill" >> stage2/05-shadow/00-packages
+          cat stage2/05-shadow/00-packages
           
-          # 00-packages for shadow dependencies
-          cat > stage2/05-shadow/00-packages << 'EOF'
-git
-python3-pip
-python3-venv
-python3-dev
-hostapd
-dnsmasq
-aircrack-ng
-tcpdump
-iw
-wireless-tools
-avahi-daemon
-libjpeg-dev
-zlib1g-dev
-libfreetype6-dev
-rfkill
-EOF
-          
-          # 01-run.sh - Install MoMo-Shadow
-          cat > stage2/05-shadow/01-run.sh << 'RUNEOF'
-#!/bin/bash -e
-
-echo "Installing MoMo-Shadow..."
-
-on_chroot << 'CHEOF'
-# Clone MoMo-Shadow
-if [ ! -d /opt/shadow ]; then
-    git clone https://github.com/M0M0Sec/MoMo-Shadow.git /opt/shadow || echo "Clone failed"
-fi
-
-# Create virtual environment
-cd /opt/shadow || exit 0
-python3 -m venv venv || echo "venv failed"
-. venv/bin/activate || echo "activate failed"
-pip install --upgrade pip wheel setuptools || echo "pip upgrade failed"
-pip install -e . || echo "pip install failed, continuing..."
-
-# Create directories (use momo-shadow to avoid conflict with /etc/shadow)
-mkdir -p /etc/momo-shadow
-mkdir -p /var/momo-shadow/data
-mkdir -p /var/momo-shadow/captures
-
-# Copy config
-if [ -f /opt/shadow/config/shadow.example.yml ]; then
-    cp /opt/shadow/config/shadow.example.yml /etc/momo-shadow/config.yml
-fi
-
-# Install systemd service
-if [ -f /opt/shadow/deploy/shadow.service ]; then
-    cp /opt/shadow/deploy/shadow.service /etc/systemd/system/
-    systemctl enable shadow.service || true
-fi
-CHEOF
-
-echo "MoMo-Shadow installation complete!"
-RUNEOF
+      - name: Create Shadow install script
+        run: |
+          cd pi-gen
+          cat > stage2/05-shadow/01-run.sh << 'ENDSCRIPT'
+          #!/bin/bash -e
+          echo "Installing MoMo-Shadow..."
+          on_chroot << 'ENDCHROOT'
+          git clone https://github.com/M0M0Sec/MoMo-Shadow.git /opt/shadow || echo "Clone failed"
+          cd /opt/shadow || exit 0
+          python3 -m venv venv || echo "venv failed"
+          . venv/bin/activate || true
+          pip install --upgrade pip wheel setuptools || true
+          pip install -e . || echo "pip install failed"
+          mkdir -p /etc/momo-shadow /var/momo-shadow/data /var/momo-shadow/captures
+          [ -f /opt/shadow/config/shadow.example.yml ] && cp /opt/shadow/config/shadow.example.yml /etc/momo-shadow/config.yml
+          [ -f /opt/shadow/deploy/shadow.service ] && cp /opt/shadow/deploy/shadow.service /etc/systemd/system/ && systemctl enable shadow.service || true
+          ENDCHROOT
+          echo "MoMo-Shadow installation complete!"
+          ENDSCRIPT
           chmod +x stage2/05-shadow/01-run.sh
           
-          # 02-run.sh - Configure system (USB Gadget + WiFi AP)
-          cat > stage2/05-shadow/02-run.sh << 'RUNEOF'
-#!/bin/bash -e
-
-echo "Configuring system for MoMo-Shadow..."
-
-# Determine boot config location in rootfs
-if [ -d "${ROOTFS_DIR}/boot/firmware" ]; then
-    BOOT_DIR="${ROOTFS_DIR}/boot/firmware"
-else
-    BOOT_DIR="${ROOTFS_DIR}/boot"
-fi
-
-BOOT_CONFIG="${BOOT_DIR}/config.txt"
-CMDLINE="${BOOT_DIR}/cmdline.txt"
-
-echo "Boot directory: ${BOOT_DIR}"
-echo "Config file: ${BOOT_CONFIG}"
-echo "Cmdline file: ${CMDLINE}"
-
-# === USB GADGET MODE CONFIGURATION ===
-echo "Configuring USB Gadget mode..."
-
-# Add dtoverlay=dwc2 to config.txt
-if [ -f "$BOOT_CONFIG" ]; then
-    if ! grep -q "^dtoverlay=dwc2" "$BOOT_CONFIG"; then
-        echo "" >> "$BOOT_CONFIG"
-        echo "# USB Gadget Mode" >> "$BOOT_CONFIG"
-        echo "dtoverlay=dwc2" >> "$BOOT_CONFIG"
-        echo "Added dtoverlay=dwc2 to config.txt"
-    fi
-fi
-
-# Add modules-load=dwc2,g_ether to cmdline.txt
-if [ -f "$CMDLINE" ]; then
-    if ! grep -q "modules-load=dwc2,g_ether" "$CMDLINE"; then
-        # Add after rootwait
-        sed -i 's/rootwait/rootwait modules-load=dwc2,g_ether/' "$CMDLINE"
-        echo "Added modules-load=dwc2,g_ether to cmdline.txt"
-    fi
-fi
-
-# Enable SPI for e-Paper
-if [ -f "$BOOT_CONFIG" ]; then
-    if ! grep -q "^dtparam=spi=on" "$BOOT_CONFIG"; then
-        echo "" >> "$BOOT_CONFIG"
-        echo "# SPI for e-Paper display" >> "$BOOT_CONFIG"
-        echo "dtparam=spi=on" >> "$BOOT_CONFIG"
-        echo "Enabled SPI"
-    fi
-fi
-
-# === WIFI AP CONFIGURATION ===
-echo "Configuring WiFi AP mode..."
-
-on_chroot << 'CHEOF'
-# Ensure modules load at boot
-echo "dwc2" >> /etc/modules
-echo "g_ether" >> /etc/modules
-echo "libcomposite" >> /etc/modules
-
-# Configure hostapd for Shadow AP
-mkdir -p /etc/hostapd
-cat > /etc/hostapd/hostapd.conf << 'HOSTAPD'
-interface=wlan0
-driver=nl80211
-ssid=Shadow-Setup
-hw_mode=g
-channel=7
-wmm_enabled=0
-macaddr_acl=0
-auth_algs=1
-ignore_broadcast_ssid=0
-wpa=2
-wpa_passphrase=shadowpass123
-wpa_key_mgmt=WPA-PSK
-rsn_pairwise=CCMP
-HOSTAPD
-
-# Point hostapd to config
-echo 'DAEMON_CONF="/etc/hostapd/hostapd.conf"' > /etc/default/hostapd
-
-# Unmask hostapd (it's masked by default in Bookworm)
-systemctl unmask hostapd || true
-
-# Configure dnsmasq
-mkdir -p /etc/dnsmasq.d
-cat > /etc/dnsmasq.d/shadow.conf << 'DNSMASQ'
-interface=wlan0
-dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
-address=/shadow.local/192.168.4.1
-DNSMASQ
-
-# Static IP for wlan0 in AP mode using dhcpcd
-if [ -f /etc/dhcpcd.conf ]; then
-    if ! grep -q "interface wlan0" /etc/dhcpcd.conf; then
-        cat >> /etc/dhcpcd.conf << 'DHCPCD'
-
-# Shadow AP mode - Static IP for Access Point
-interface wlan0
-static ip_address=192.168.4.1/24
-nohook wpa_supplicant
-DHCPCD
-        echo "Added static IP config to dhcpcd.conf"
-    fi
-fi
-
-# Create systemd override for hostapd (wait for wlan0)
-mkdir -p /etc/systemd/system/hostapd.service.d
-cat > /etc/systemd/system/hostapd.service.d/override.conf << 'OVERRIDE'
-[Unit]
-After=network.target
-Wants=network.target
-
-[Service]
-ExecStartPre=/bin/sleep 5
-ExecStartPre=/sbin/rfkill unblock wifi
-OVERRIDE
-
-# Create a startup script to ensure AP mode works
-cat > /usr/local/bin/shadow-ap-setup.sh << 'APSCRIPT'
-#!/bin/bash
-# MoMo-Shadow AP Setup Script
-
-# Unblock WiFi
-rfkill unblock wifi
-
-# Wait for wlan0
-for i in {1..30}; do
-    if ip link show wlan0 &>/dev/null; then
-        break
-    fi
-    sleep 1
-done
-
-# Stop wpa_supplicant if running
-systemctl stop wpa_supplicant 2>/dev/null || true
-
-# Set wlan0 down then up
-ip link set wlan0 down 2>/dev/null || true
-sleep 1
-ip link set wlan0 up
-
-# Start hostapd
-systemctl restart hostapd
-
-# Start dnsmasq
-systemctl restart dnsmasq
-
-echo "Shadow AP setup complete"
-APSCRIPT
-chmod +x /usr/local/bin/shadow-ap-setup.sh
-
-# Create systemd service for AP setup
-cat > /etc/systemd/system/shadow-ap.service << 'APSERVICE'
-[Unit]
-Description=MoMo-Shadow AP Setup
-After=network-pre.target
-Before=network.target hostapd.service
-Wants=network-pre.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/shadow-ap-setup.sh
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-APSERVICE
-
-# Set hostname
-echo "shadow" > /etc/hostname
-sed -i 's/127.0.1.1.*/127.0.1.1\tshadow/' /etc/hosts 2>/dev/null || echo "127.0.1.1	shadow" >> /etc/hosts
-
-# Disable wpa_supplicant to prevent it from interfering with AP mode
-systemctl disable wpa_supplicant 2>/dev/null || true
-systemctl mask wpa_supplicant 2>/dev/null || true
-
-# Enable services
-systemctl enable hostapd 2>/dev/null || true
-systemctl enable dnsmasq 2>/dev/null || true
-systemctl enable avahi-daemon 2>/dev/null || true
-systemctl enable ssh 2>/dev/null || true
-systemctl enable shadow-ap.service 2>/dev/null || true
-CHEOF
-
-# Create SSH enable file for first boot
-touch "${BOOT_DIR}/ssh"
-echo "Created SSH enable file"
-
-echo "System configuration complete!"
-RUNEOF
+      - name: Create Shadow config script
+        run: |
+          cd pi-gen
+          cat > stage2/05-shadow/02-run.sh << 'ENDSCRIPT'
+          #!/bin/bash -e
+          echo "Configuring system for MoMo-Shadow..."
+          
+          # Boot config paths
+          if [ -d "${ROOTFS_DIR}/boot/firmware" ]; then
+              BOOT_DIR="${ROOTFS_DIR}/boot/firmware"
+          else
+              BOOT_DIR="${ROOTFS_DIR}/boot"
+          fi
+          
+          # USB Gadget Mode
+          echo "" >> "${BOOT_DIR}/config.txt"
+          echo "# USB Gadget Mode" >> "${BOOT_DIR}/config.txt"
+          echo "dtoverlay=dwc2" >> "${BOOT_DIR}/config.txt"
+          echo "# SPI for e-Paper" >> "${BOOT_DIR}/config.txt"
+          echo "dtparam=spi=on" >> "${BOOT_DIR}/config.txt"
+          
+          # cmdline.txt - add modules
+          if [ -f "${BOOT_DIR}/cmdline.txt" ]; then
+              sed -i 's/rootwait/rootwait modules-load=dwc2,g_ether/' "${BOOT_DIR}/cmdline.txt"
+          fi
+          
+          # SSH enable file
+          touch "${BOOT_DIR}/ssh"
+          
+          on_chroot << 'ENDCHROOT'
+          # Modules
+          echo "dwc2" >> /etc/modules
+          echo "g_ether" >> /etc/modules
+          echo "libcomposite" >> /etc/modules
+          
+          # hostapd config
+          mkdir -p /etc/hostapd
+          cat > /etc/hostapd/hostapd.conf << 'HOSTAPD'
+          interface=wlan0
+          driver=nl80211
+          ssid=Shadow-Setup
+          hw_mode=g
+          channel=7
+          wmm_enabled=0
+          macaddr_acl=0
+          auth_algs=1
+          ignore_broadcast_ssid=0
+          wpa=2
+          wpa_passphrase=shadowpass123
+          wpa_key_mgmt=WPA-PSK
+          rsn_pairwise=CCMP
+          HOSTAPD
+          
+          echo 'DAEMON_CONF="/etc/hostapd/hostapd.conf"' > /etc/default/hostapd
+          systemctl unmask hostapd || true
+          
+          # dnsmasq config
+          mkdir -p /etc/dnsmasq.d
+          cat > /etc/dnsmasq.d/shadow.conf << 'DNSMASQ'
+          interface=wlan0
+          dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
+          address=/shadow.local/192.168.4.1
+          DNSMASQ
+          
+          # Static IP for wlan0
+          if [ -f /etc/dhcpcd.conf ]; then
+              echo "" >> /etc/dhcpcd.conf
+              echo "# Shadow AP mode" >> /etc/dhcpcd.conf
+              echo "interface wlan0" >> /etc/dhcpcd.conf
+              echo "static ip_address=192.168.4.1/24" >> /etc/dhcpcd.conf
+              echo "nohook wpa_supplicant" >> /etc/dhcpcd.conf
+          fi
+          
+          # hostapd override
+          mkdir -p /etc/systemd/system/hostapd.service.d
+          cat > /etc/systemd/system/hostapd.service.d/override.conf << 'OVERRIDE'
+          [Unit]
+          After=network.target
+          [Service]
+          ExecStartPre=/bin/sleep 5
+          ExecStartPre=-/sbin/rfkill unblock wifi
+          OVERRIDE
+          
+          # AP setup script
+          cat > /usr/local/bin/shadow-ap-setup.sh << 'APSCRIPT'
+          #!/bin/bash
+          rfkill unblock wifi
+          for i in {1..30}; do ip link show wlan0 &>/dev/null && break; sleep 1; done
+          systemctl stop wpa_supplicant 2>/dev/null || true
+          ip link set wlan0 down 2>/dev/null || true
+          sleep 1
+          ip link set wlan0 up
+          systemctl restart hostapd
+          systemctl restart dnsmasq
+          APSCRIPT
+          chmod +x /usr/local/bin/shadow-ap-setup.sh
+          
+          # AP setup service
+          cat > /etc/systemd/system/shadow-ap.service << 'APSERVICE'
+          [Unit]
+          Description=MoMo-Shadow AP Setup
+          After=network-pre.target
+          Before=hostapd.service
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/shadow-ap-setup.sh
+          RemainAfterExit=yes
+          [Install]
+          WantedBy=multi-user.target
+          APSERVICE
+          
+          # Hostname
+          echo "shadow" > /etc/hostname
+          grep -q "shadow" /etc/hosts || echo "127.0.1.1 shadow" >> /etc/hosts
+          
+          # Enable/disable services
+          systemctl disable wpa_supplicant 2>/dev/null || true
+          systemctl mask wpa_supplicant 2>/dev/null || true
+          systemctl enable hostapd dnsmasq avahi-daemon ssh shadow-ap.service 2>/dev/null || true
+          ENDCHROOT
+          
+          echo "Configuration complete!"
+          ENDSCRIPT
           chmod +x stage2/05-shadow/02-run.sh
           
-          # Enable image export at stage2
+      - name: Finalize stage2
+        run: |
+          cd pi-gen
           touch stage2/EXPORT_IMAGE
-          
-          echo "=== Stage2 structure ==="
-          ls -la stage2/
           ls -la stage2/05-shadow/
-          cat stage2/05-shadow/00-packages
           
       - name: Build image
         run: |
           cd pi-gen
-          
-          # Show config before build
-          echo "=== Final config ==="
-          cat config
-          
-          # Verify no leading spaces in config
-          echo "=== Checking for leading spaces ==="
-          grep "^[[:space:]]" config && echo "WARNING: Found leading spaces!" || echo "No leading spaces - good!"
-          
+          echo "=== Final config ===" && cat config
           echo "=== Starting build ==="
           sudo ./build.sh -c config
           
@@ -422,64 +274,27 @@ RUNEOF
         run: |
           echo "=== Deploy directory ==="
           ls -la pi-gen/deploy/ 2>/dev/null || echo "No deploy directory"
-          
           echo "=== Work directory ==="
           ls -la pi-gen/work/ 2>/dev/null | head -20 || echo "No work directory"
           
       - name: Prepare release files
         run: |
           mkdir -p release
-          
-          # Find and copy the built image
           IMG_FILE=$(find pi-gen/deploy -name "*.img.xz" 2>/dev/null | head -1)
           if [ -n "$IMG_FILE" ]; then
-            echo "Found image: $IMG_FILE"
             cp "$IMG_FILE" "release/${{ env.IMAGE_NAME }}-v${{ steps.version.outputs.version }}-pi-zero-2w.img.xz"
-          else
-            echo "No image found, checking for .img files..."
-            find pi-gen/deploy -name "*.img" 2>/dev/null | head -5
           fi
-          
-          # Create SHA256 checksum
           cd release
-          if ls *.img.xz 1>/dev/null 2>&1; then
-            sha256sum *.img.xz > SHA256SUMS.txt
-          fi
+          [ -f *.img.xz ] && sha256sum *.img.xz > SHA256SUMS.txt || true
+          cat > RELEASE_NOTES.md << 'ENDNOTES'
+          # MoMo-Shadow
           
-          # Create release notes
-          cat > RELEASE_NOTES.md << 'EOF'
-# MoMo-Shadow v${{ steps.version.outputs.version }}
-
-## 🥷 Stealth WiFi Recon Device
-
-### Quick Start
-1. Download the `.img.xz` file
-2. Flash to SD card with [balenaEtcher](https://etcher.balena.io/)
-3. Insert SD card into Pi Zero 2W
-4. Power on
-5. Connect to WiFi: `Shadow-Setup` (password: `shadowpass123`)
-6. Open: http://192.168.4.1
-
-### Default Credentials
-- **SSH User:** pi
-- **SSH Password:** shadow123
-- **WiFi AP:** Shadow-Setup
-- **WiFi Password:** shadowpass123
-- **Web UI:** http://192.168.4.1
-
-### What's Included
-- Raspberry Pi OS Lite (Bookworm)
-- MoMo-Shadow pre-installed
-- USB Gadget mode enabled
-- WiFi AP auto-configured
-- Systemd service enabled
-
-### Verify Download
-```bash
-sha256sum -c SHA256SUMS.txt
-```
-EOF
-          
+          ## Quick Start
+          1. Flash to SD card with balenaEtcher
+          2. Insert into Pi Zero 2W and power on
+          3. Connect to WiFi: Shadow-Setup (password: shadowpass123)
+          4. SSH: pi@192.168.4.1 (password: shadow123)
+          ENDNOTES
           ls -la
           
       - name: Upload artifacts
